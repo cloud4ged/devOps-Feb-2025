@@ -1,0 +1,63 @@
+- name: Install ngnix web server
+  hosts: all
+  tasks:
+    - name: Install nginix in ubuntu
+      apt: 
+        name: nginx
+        state: latest
+        update_cache: yes
+        state: present
+      when: (ansible_distribution == "Ubuntu" and ansible_os_family == "Debian")
+
+    - name: Start nginx services in Containers
+      service:
+        name: nginx
+        state: started
+      when: (ansible_distribution == "Ubuntu" and ansible_os_family == "Debian")
+
+    - name: create custom folder to place our html
+      file:
+        state: directory
+        path: "/var/html"
+        mode: 0777
+      when: (ansible_distribution == "Ubuntu" and ansible_os_family == "Debian")
+
+    - name: Map the index file
+      copy:
+        src: default
+        dest: /etc/nginx/sites-available/default
+      register: WebPage
+
+    - debug:
+        msg: "{{ WebPage }}"
+
+    - name: Deploy custom html page
+      copy:
+        src: index.html
+        dest: /var/html/index.html
+      when: (ansible_distribution == "Ubuntu" and ansible_os_family == "Debian")
+
+    - name: restart ngnix services
+      service:
+        name: nginx
+        state: restarted
+      when: (WebPage.changed == true and ansible_distribution == "Ubuntu" and ansible_os_family == "Debian")
+
+- name: This will test if nginx is working as expected
+  hosts: localhost
+  vars:
+    - machines_urls_to_be_tested:
+      - http://localhost:8001
+      - http://localhost:8002
+  tasks:
+    - name: Check if ansible node serves html pages
+      shell: "curl {{ item }}"
+      loop: "{{ machines_urls_to_be_tested }}"
+      register: Server_Status
+
+    - debug:
+        msg: "{{ Server_Status.results }}"
+
+    - debug:
+        var: "{{ item.stdout }}"
+      loop: "{{ Server_Status.results }}"
